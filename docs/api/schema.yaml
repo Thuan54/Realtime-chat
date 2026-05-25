@@ -1,0 +1,46 @@
+User:
+  type: object
+  required: [id, email]
+  properties:
+    id:
+      type: string
+    email:
+      type: string
+
+Channel:
+  type: object
+  required: [id, name]
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+
+Message:
+  type: object
+  required: [id, sender_id, content, created_at]
+  properties:
+    id:
+      type: string
+    sender_id:
+      type: string
+      description: exist to determine which message attach to whom
+    content:
+      type: string
+      maxLength: 4096
+    created_at:
+      type: string
+      format: date-time
+      description: exist for ordering, avoid duplicating
+
+ErrorResponse:
+  type: object
+  required: [code, message]
+  properties:
+    code:
+      type: string
+    message:
+      type: string
+    detail:
+      type: object
+      nullable: true
