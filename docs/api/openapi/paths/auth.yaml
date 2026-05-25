@@ -1,0 +1,36 @@
+login:
+  post:
+    summary: Authenticate user & establish session
+    operationId: authLogin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email, password]
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+                format: password
+                minLength: 8
+    responses:
+      '200':
+        description: Login successful
+      '400':
+        $ref: '../components/responses.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+
+logout:
+  post:
+    summary: Invalidate session
+    operationId: authLogout
+    security:
+      - sessionCookie: []
+    responses:
+      '204':
+        description: Session revoked

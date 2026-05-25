@@ -1,0 +1,5 @@
+sessionCookie:
+  type: apiKey
+  in: cookie
+  name: session_id
+  description: Session cookie validated on API requests
