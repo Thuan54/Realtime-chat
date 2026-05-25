@@ -1,0 +1,25 @@
+Ping:
+  name: ping
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: ping
+      payload:
+        type: "null"
+      error:
+        type: "null"
+
+Pong:
+  name: pong
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: pong
+      payload:
+        type: "null"
+      error:
+        type: "null"

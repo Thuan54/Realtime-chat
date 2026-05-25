@@ -1,0 +1,25 @@
+AuthCheck:
+  name: auth.check
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: auth.check
+      payload:
+        type: "null"
+      error:
+        type: "null"
+
+AuthOk:
+  name: auth.ok
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: auth.ok
+      payload:
+        type: "null"
+      error:
+        type: "null"

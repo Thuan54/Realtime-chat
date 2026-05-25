@@ -1,0 +1,20 @@
+AuthCheck:
+  $ref: './messages/auth.yaml#/AuthCheck'
+AuthOk:
+  $ref: './messages/auth.yaml#/AuthOk'
+MessageSend:
+  $ref: './messages/message.yaml#/MessageSend'
+MessageSendOk:
+  $ref: './messages/message.yaml#/MessageSendOk'
+ChannelJoin:
+  $ref: './messages/channel.yaml#/ChannelJoin'
+ChannelJoinOk:
+  $ref: './messages/channel.yaml#/ChannelJoinOk'
+ChannelLeave:
+  $ref: './messages/channel.yaml#/ChannelLeave'
+ChannelMessage:
+  $ref: './messages/channel.yaml#/ChannelMessage'
+Ping:
+  $ref: './messages/heartbeat.yaml#/Ping'
+Pong:
+  $ref: './messages/heartbeat.yaml#/Pong'
