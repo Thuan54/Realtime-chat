@@ -1,0 +1,30 @@
+# infra/Dockerfile.frontend
+# Build context: frontend/ (as defined in docker-compose.yml)
+
+# Stage 1: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install exact dependencies from lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy source and build production assets
+COPY . .
+RUN npm run build
+
+# Stage 2: Static Server
+FROM nginx:1.25-alpine AS runtime
+
+# Copy Vite output to Nginx default root
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Remove default config to prevent conflicts with our mounted infra/nginx.conf
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Nginx workers already run as non-root 'nginx' user by default.
+# Explicitly set it for audit clarity.
+USER nginx
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
