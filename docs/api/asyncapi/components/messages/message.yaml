@@ -1,0 +1,42 @@
+MessageSend:
+  name: message.send
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: message.send
+      payload:
+        type: object
+        required: [channel_id, content]
+        properties:
+          channel_id:
+            type: string
+          content:
+            type: string
+            maxLength: 4096
+      error:
+        type: "null"
+
+MessageSendOk:
+  name: message.send.ok
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: message.send.ok
+      payload:
+        type: object
+        required: [id, sender_id, created_at]
+        properties:
+          id:
+            type: string
+          sender_id:
+            type: string
+          created_at:
+            type: string
+            format: date-time
+      error:
+        type: "null"
+

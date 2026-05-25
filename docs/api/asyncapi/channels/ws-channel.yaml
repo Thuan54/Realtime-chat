@@ -1,0 +1,53 @@
+address: /ws/v1
+
+messages:
+  auth.check:
+    $ref: '../components/messages.yaml#/AuthCheck'
+
+  auth.ok:
+    $ref: '../components/messages.yaml#/AuthOk'
+
+  message.send:
+    $ref: '../components/messages.yaml#/MessageSend'
+
+  message.send.ok:
+    $ref: '../components/messages.yaml#/MessageSendOk'
+
+  channel.join:
+    $ref: '../components/messages.yaml#/ChannelJoin'
+
+  channel.join.ok:
+    $ref: '../components/messages.yaml#/ChannelJoinOk'
+
+  channel.leave:
+    $ref: '../components/messages.yaml#/ChannelLeave'
+
+  channel.message:
+    $ref: '../components/messages.yaml#/ChannelMessage'
+
+  ping:
+    $ref: '../components/messages.yaml#/Ping'
+
+  pong:
+    $ref: '../components/messages.yaml#/Pong'
+
+operations:
+  clientToServer:
+    action: send
+    messages:
+      - $ref: '#/messages/auth.check'
+      - $ref: '#/messages/message.send'
+      - $ref: '#/messages/channel.join'
+      - $ref: '#/messages/channel.leave'
+      - $ref: '#/messages/pong'
+    security:
+      - sessionCookie: []
+
+  serverToClient:
+    action: receive
+    messages:
+      - $ref: '#/messages/auth.ok'
+      - $ref: '#/messages/message.send.ok'
+      - $ref: '#/messages/channel.join.ok'
+      - $ref: '#/messages/channel.message'
+      - $ref: '#/messages/ping'

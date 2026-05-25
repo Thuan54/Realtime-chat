@@ -1,0 +1,51 @@
+ChannelJoin:
+  name: channel.join
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: channel.join
+      payload:
+        $ref: '../../schema.yaml#/Channel'
+      error:
+        type: "null"
+
+ChannelJoinOk:
+  name: channel.join.ok
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: channel.join.ok
+      payload:
+        $ref: '../../schema.yaml#/Channel'
+      error:
+        type: "null"
+
+ChannelLeave:
+  name: channel.leave
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: channel.leave
+      payload:
+        $ref: '../../schema.yaml#/Channel'
+      error:
+        type: "null"
+
+ChannelMessage:
+  name: channel.message
+  payload:
+    type: object
+    required: [type, payload, error]
+    properties:
+      type:
+        const: channel.message
+      payload:
+        $ref: '../../schema.yaml#/Message'
+      error:
+        type: "null"

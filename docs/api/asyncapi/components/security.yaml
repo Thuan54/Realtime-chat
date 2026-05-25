@@ -1,0 +1,5 @@
+sessionCookie:
+  type: httpApiKey
+  in: cookie
+  name: session_id
+  description: Session cookie validated on WS upgrade
