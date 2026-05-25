@@ -1,0 +1,36 @@
+list:
+  get:
+    summary: List user channels
+    operationId: getChannels
+    security:
+      - sessionCookie: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: '../../schema.yaml#/Channel'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+
+join:
+  post:
+    summary: Join channel
+    operationId: joinChannel
+    security:
+      - sessionCookie: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '204':
+        description: Joined

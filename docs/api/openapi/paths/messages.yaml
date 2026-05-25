@@ -1,0 +1,26 @@
+list:
+  get:
+    summary: List messages in a channel
+    operationId: listChannelMessages
+    security:
+      - sessionCookie: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: '../../schema.yaml#/Message'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'

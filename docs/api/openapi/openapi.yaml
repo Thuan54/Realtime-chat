@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Realtime Chat REST API
+  version: 1.0.0
+
+servers:
+  - url: http://app.com/api/v1
+
+paths:
+  /auth/login:
+    $ref: './paths/auth.yaml#/login'
+  /auth/logout:
+    $ref: './paths/auth.yaml#/logout'
+
+  /channels:
+    $ref: './paths/channels.yaml#/list'
+
+  /channels/{id}/join:
+    $ref: './paths/channels.yaml#/join'
+
+  /channels/{id}/messages:
+    $ref: './paths/messages.yaml#/list'
+
+components:
+  schemas:
+    User:
+      $ref: '../schema.yaml#/User'
+    Channel:
+      $ref: '../schema.yaml#/Channel'
+    Message:
+      $ref: '../schema.yaml#/Message'
+    ErrorResponse:
+      $ref: '../schema.yaml#/ErrorResponse'
+
+  responses:
+    $ref: './components/responses.yaml'
+
+  securitySchemes:
+    $ref: './components/security.yaml'

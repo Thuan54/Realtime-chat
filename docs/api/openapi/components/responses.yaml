@@ -1,0 +1,17 @@
+ValidationError:
+  description: Invalid request payload
+  content:
+    application/json:
+      schema:
+        $ref: '../../schema.yaml#/ErrorResponse'
+      example:
+        error:
+          code: VALIDATION_ERROR
+          message: Invalid payload
+
+Unauthorized:
+  description: Missing or invalid session
+  content:
+    application/json:
+      schema:
+        $ref: '../../schema.yaml#/ErrorResponse'
