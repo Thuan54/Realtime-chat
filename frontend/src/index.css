@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  color-scheme: light dark;
+}
