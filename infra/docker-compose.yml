@@ -1,0 +1,98 @@
+# infra/docker-compose.yml
+services:
+  postgres:
+    image: postgres:16-alpine
+    port:
+     - "5432:5432"
+    container_name: chat-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chatuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-chatdb}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - db-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - db-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../infra/Dockerfile.backend
+    container_name: chat-backend
+    env_file: ../.env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-chatuser}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-chatdb}?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - APP_PORT=8080
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwt}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+      - db-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../infra/Dockerfile.frontend
+    container_name: chat-frontend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: chat-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+  db-network:
+    driver: bridge
+    internal: true  # 🔒 Isolates DB & Redis from external access
+
+volumes:
+  pg_data:
+  redis_data:
