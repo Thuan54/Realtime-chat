@@ -1,0 +1,77 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    env:
+      GO_VERSION: '1.22'
+      NODE_VERSION: '20'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend linting tools
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: go mod download
+
+      # Stage 1: Validate
+      - name: Run frontend type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Run frontend linter
+        working-directory: frontend
+        run: npx eslint . --ext .ts,.tsx --max-warnings 0
+
+      - name: Run backend linter
+        working-directory: backend
+        run: golangci-lint run ./...
+
+      # Stage 2: Test
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test -- --run
+
+      - name: Run backend tests
+        working-directory: backend
+        run: go test -v -race ./...
+
+      # Stage 3: Build (compile only, no Docker)
+      - name: Build frontend production assets
+        working-directory: frontend
+        run: npm run build
+
+      - name: Build backend binary
+        working-directory: backend
+        run: CGO_ENABLED=0 GOOS=linux go build -v -o /tmp/server .
+
+      - name: Verify backend binary exists
+        run: test -f /tmp/server && echo "Backend build successful"
