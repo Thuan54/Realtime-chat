@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/user/chat-app/internal/db"
 	"github.com/user/chat-app/internal/health"
 	"github.com/user/chat-app/internal/logger"
 	"github.com/user/chat-app/internal/server"
@@ -23,7 +24,26 @@ func main() {
 	}
 	log := logger.New(logLevel, "http-server")
 
-	// 2. Configure Gin
+	// 2. Database & Auto-Migrations (Blocking startup)
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Error("startup failed: DATABASE_URL environment variable is required")
+		os.Exit(1)
+	}
+	migrationDir := os.Getenv("MIGRATIONS_DIR")
+	if migrationDir == "" {
+		migrationDir = "./migrations"
+	}
+
+	ctx := context.Background()
+	dbPool, err := db.RunMigrations(ctx, dbURL, migrationDir, log)
+	if err != nil {
+		log.Error("startup aborted: migration failure", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer dbPool.Close()
+
+	// 3. Configure Gin & Middleware
 	if os.Getenv("APP_ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -31,16 +51,15 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(server.LoggerMiddleware(log))
 
-	// 3. Register Health & Ready endpoints
-	// TODO: Wire actual pgxPool.Ping and redisClient.Ping here
+	// 4. Register Health & Ready (Wired to real DB pool)
 	checker := &health.Checker{
-		DBPing:    func(ctx context.Context) error { return nil }, // Stub for bootstrap
-		RedisPing: func(ctx context.Context) error { return nil }, // Stub for bootstrap
+		DBPing:    func(ctx context.Context) error { return dbPool.PingContext(ctx) },
+		RedisPing: func(ctx context.Context) error { return nil }, // Stub until Redis client is wired
 	}
 	r.GET("/health", checker.Health)
 	r.GET("/ready", checker.Ready)
 
-	// 4. HTTP Server Setup
+	// 5. HTTP Server Setup
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {
 		addr = ":8080"
@@ -51,7 +70,7 @@ func main() {
 		Handler: r,
 	}
 
-	// 5. Graceful Shutdown (matches architecture doc SIGTERM drain requirement)
+	// 6. Graceful Shutdown
 	idleConnsClosed := make(chan struct{})
 	go func() {
 		sigint := make(chan os.Signal, 1)
@@ -68,7 +87,7 @@ func main() {
 		close(idleConnsClosed)
 	}()
 
-	log.Info("starting server", slog.String("addr", addr))
+	log.Info("server started", slog.String("addr", addr), slog.String("db_pool", "connected"))
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		log.Error("server failed to start", slog.String("error", err.Error()))
 		os.Exit(1)
