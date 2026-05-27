@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/user/chat-app/internal/cache"
 	"github.com/user/chat-app/internal/db"
 	"github.com/user/chat-app/internal/health"
 	"github.com/user/chat-app/internal/logger"
@@ -17,33 +18,36 @@ import (
 )
 
 func main() {
-	// 1. Initialize structured logger
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "info"
-	}
-	log := logger.New(logLevel, "http-server")
+	log := logger.New(os.Getenv("LOG_LEVEL"), "http-server")
+	dbDSN := os.Getenv("DATABASE_URL")
+	redisURL := os.Getenv("REDIS_URL")
+	migrationDir := os.Getenv("MIGRATION_DIR")
 
-	// 2. Database & Auto-Migrations (Blocking startup)
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Error("startup failed: DATABASE_URL environment variable is required")
-		os.Exit(1)
-	}
-	migrationDir := os.Getenv("MIGRATIONS_DIR")
-	if migrationDir == "" {
-		migrationDir = "./migrations"
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	ctx := context.Background()
-	dbPool, err := db.RunMigrations(ctx, dbURL, migrationDir, log)
+	// Initialize data stores
+	database, err := db.New(ctx, log, dbDSN)
 	if err != nil {
-		log.Error("startup aborted: migration failure", slog.String("error", err.Error()))
+		log.Error("database init failed", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	defer dbPool.Close()
+	defer database.Close()
 
-	// 3. Configure Gin & Middleware
+	redisClient, err := cache.New(ctx, log, redisURL)
+	if err != nil {
+		log.Error("redis init failed", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer redisClient.Close()
+
+	// Auto-apply migrations before accepting traffic
+	if err := db.RunMigrations(ctx, database, migrationDir, log); err != nil {
+		log.Error("migration failed", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	// Router setup
 	if os.Getenv("APP_ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -51,45 +55,39 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(server.LoggerMiddleware(log))
 
-	// 4. Register Health & Ready (Wired to real DB pool)
+	// Health/Ready endpoints with real dependency pingers
 	checker := &health.Checker{
-		DBPing:    func(ctx context.Context) error { return dbPool.PingContext(ctx) },
-		RedisPing: func(ctx context.Context) error { return nil }, // Stub until Redis client is wired
+		DBPing:    database.PingContext,
+		RedisPing: func(c context.Context) error { return redisClient.Ping(c).Err() },
 	}
 	r.GET("/health", checker.Health)
 	r.GET("/ready", checker.Ready)
 
-	// 5. HTTP Server Setup
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {
 		addr = ":8080"
 	}
+	srv := &http.Server{Addr: addr, Handler: r}
 
-	srv := &http.Server{
-		Addr:    addr,
-		Handler: r,
-	}
-
-	// 6. Graceful Shutdown
+	// Shutdown gracefully
 	idleConnsClosed := make(chan struct{})
 	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, syscall.SIGINT, syscall.SIGTERM)
-		<-sigint
-
-		log.Info("shutting down server gracefully", slog.String("signal", "SIGTERM"))
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Error("server forced to shutdown", slog.String("error", err.Error()))
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		<-sig
+		log.Info("shutting down gracefully")
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutCancel()
+		if err := srv.Shutdown(shutCtx); err != nil {
+			log.Error("server shutdown error", slog.String("error", err.Error()))
 		}
 		close(idleConnsClosed)
 	}()
 
-	log.Info("server started", slog.String("addr", addr), slog.String("db_pool", "connected"))
+	// Start server
+	log.Info("starting server", slog.String("addr", addr))
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		log.Error("server failed to start", slog.String("error", err.Error()))
+		log.Error("server failed", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 
